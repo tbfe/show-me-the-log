@@ -19,8 +19,7 @@
       "19": "images/icon-19.png",
       "38": "images/icon-38.png"
     },
-    "default_title": "Show Me the LOG",
-    "default_popup": "popup.html"
+    "default_title": "Show Me the LOG"
   },
   "options_page": "options.html",
   "content_scripts": [
@@ -35,12 +34,14 @@
       "js": [
         "scripts/contentscript.js"
       ],
-      "run_at": "document_end",
+      "run_at": "document_start",
       "all_frames": false
     }
   ],
   "permissions": [
     "tabs",
+    "webRequest",
+    "webRequestBlocking",
     "http://*/*",
     "https://*/*"
   ]
