@@ -17,7 +17,7 @@ var LOG_TYPE_STYLE = {
     '16': 'color:#333;'
 };
 
-var LOG_FIELD = ['type', 'content', 'file', 'line', 'time', 'logid'];
+var LOG_FIELD = ['type', 'content', 'file', 'line', 'logid', 'time'];
 
 chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
     var logs;
@@ -27,11 +27,13 @@ chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
         console.log('Log parse error, origin log: ' + request);
     }
     for (var i = 0; i < logs.length; i++) {
-        var log = [];
+        var log = {};
         for (var j = logs[i].length - 1; j >= 0; j--) {
             log[LOG_FIELD[j]] = logs[i][j];
         }
-        console.group('%c%s %c%s', LOG_TYPE_STYLE[log.type], LOG_TYPE[log.type], 'color: #999;', new Date(log.time).toLocaleTimeString());
+        console.group('%c%s %c%s',
+            LOG_TYPE_STYLE[log.type], LOG_TYPE[log.type],
+            'color: #999;', new Date(log.time * 1000).toLocaleTimeString());
         console.log.call(console, log.content);
         delete log.type;
         delete log.time;
