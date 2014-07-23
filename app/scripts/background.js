@@ -7,7 +7,7 @@ var filter = {
 chrome.webRequest.onBeforeSendHeaders.addListener(function(details) {
     //console.log('req: ', details);
     details.requestHeaders.push({
-        'name': 'X-Bingo-Dump-Log',
+        'name': 'X-Bingo-Export-Log',
         'value': '1'
     });
     return {
@@ -23,6 +23,7 @@ chrome.webRequest.onHeadersReceived.addListener(function(details) {
     var tabId = details.tabId;
     var sendMessageToContent = function(message) {
         chrome.tabs.sendMessage(tabId, message, function(response) {
+            console.log(response);
             if (response === undefined) {
                 //response不存在，则content script还未初始化，缓存之。
                 if (staging[tabId]) {
@@ -34,9 +35,9 @@ chrome.webRequest.onHeadersReceived.addListener(function(details) {
         });
     };
     for (var i = 0; i < details.responseHeaders.length; ++i) {
-        if (details.responseHeaders[i].name === 'Content-Type') {
-            console.log(details.responseHeaders[i]);
-            sendMessageToContent(details.responseHeaders[i]);
+        if (details.responseHeaders[i].name === 'X-Bingo-Log') {
+            console.log(details.responseHeaders[i].value);
+            sendMessageToContent(details.responseHeaders[i].value);
             break;
         }
     }
