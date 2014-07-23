@@ -28,9 +28,6 @@
         "http://*.baidu.com/*",
         "https://*.baidu.com/*"
       ],
-      "css": [
-        "styles/main.css"
-      ],
       "js": [
         "scripts/contentscript.js"
       ],
