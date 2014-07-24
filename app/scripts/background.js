@@ -6,12 +6,14 @@ var filter = {
 
 var KEY_URL = 'http://fedev.baidu.com/~tieba/bingo-log-key.php';
 
+var cache = {};
+
 function _getKeyFromCache() {
-    var value = localStorage.getItem('key');
+    var value = cache.key;
     if (value === '') {
         return false;
     } else {
-        var time = localStorage.getItem('time');
+        var time = cache.time;
         if ((new Date(Number(time))).toDateString() === (new Date()).toDateString()) {
             return value;
         } else {
@@ -21,15 +23,16 @@ function _getKeyFromCache() {
     return false;
 }
 
-function _cacheKeyFromServer(callback) {
+function _updateKeyCacheFromServer(callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function handleStateChange(xhrpe) {
         if (xhrpe.srcElement.readyState !== 4) {
             return;
         }
         var response = xhrpe.srcElement.response;
-        localStorage.setItem('key', response);
-        localStorage.setItem('time', Date.now());
+        cache.key = response;
+        cache.time = Date.now();
+        console.log('key updated: ' + cache.key);
         if (typeof callback === 'function') {
             callback(response);
         }
@@ -39,66 +42,111 @@ function _cacheKeyFromServer(callback) {
 }
 
 var Cache = {
-    getKey: function(callback) {
+    getKey: function() {
         var key = _getKeyFromCache();
         if (key) {
-            callback(key);
+            return key;
         } else {
-            _cacheKeyFromServer(callback);
+            _updateKeyCacheFromServer();
+            return '';
         }
+    },
+    get: function(key, defaultValue) {
+        var value = localStorage.getItem(key);
+        if (value === null) {
+            return defaultValue;
+        }
+        return value;
+    },
+    set: function(key, value) {
+        localStorage.setItem(key, value);
     }
 };
+_updateKeyCacheFromServer();
 
-function initListeners(key) {
-    chrome.webRequest.onBeforeSendHeaders.addListener(function(details) {
-        //console.log('req: ', details);
-        details.requestHeaders.push({
-            'name': 'X-Bingo-Export-Log',
-            'value': key
-        });
-        return {
-            requestHeaders: details.requestHeaders
-        };
-    }, filter, ['blocking', 'requestHeaders']);
 
-    //暂存区
-    var staging = {};
+function beforeSendHeadersHandler(details) {
+    //console.log('req: ', details);
+    var key = Cache.getKey();
+    details.requestHeaders.push({
+        'name': 'X-Bingo-Export-Log',
+        'value': key
+    });
+    return {
+        requestHeaders: details.requestHeaders
+    };
+}
+//暂存区
+var staging = {};
 
-    chrome.webRequest.onHeadersReceived.addListener(function(details) {
-        //console.log('res: ', details);
-        var tabId = details.tabId;
-        var sendMessageToContent = function(message) {
-            chrome.tabs.sendMessage(tabId, message, function(response) {
-                console.log(response);
-                if (response === undefined) {
-                    //response不存在，则content script还未初始化，缓存之。
-                    if (staging[tabId]) {
-                        staging[tabId].push(message);
-                    } else {
-                        staging[tabId] = [message];
-                    }
+function headersReceivedHandler(details) {
+    //console.log('res: ', details);
+    var tabId = details.tabId;
+    var sendMessageToContent = function(message) {
+        chrome.tabs.sendMessage(tabId, message, function(response) {
+            //console.log(response);
+            if (response === undefined) {
+                //response不存在，则content script还未初始化，缓存之。
+                if (staging[tabId]) {
+                    staging[tabId].push(message);
+                } else {
+                    staging[tabId] = [message];
                 }
-            });
-        };
-        for (var i = 0; i < details.responseHeaders.length; ++i) {
-            if (details.responseHeaders[i].name === 'X-Bingo-Log') {
-                console.log(details.responseHeaders[i].value);
-                sendMessageToContent(details.responseHeaders[i].value);
-                break;
             }
+        });
+    };
+    for (var i = 0; i < details.responseHeaders.length; ++i) {
+        if (details.responseHeaders[i].name === 'X-Bingo-Log') {
+            console.log(details.responseHeaders[i].value);
+            sendMessageToContent(details.responseHeaders[i].value);
+            break;
         }
-    }, filter, ['responseHeaders']);
+    }
+}
 
-    chrome.extension.onMessage.addListener(function(request, sender) {
-        var tabId = sender.tab.id;
-        console.log('tab ' + tabId + ' ready. sending staged messages');
-        if (staging[tabId]) {
-            for (var i = 0, length = staging[tabId].length; i < length; i++) {
-                chrome.tabs.sendMessage(tabId, staging[tabId][i]);
-            }
-            delete staging[tabId];
+function messageHandler(request, sender) {
+    var tabId = sender.tab.id;
+    console.log('tab ' + tabId + ' ready. sending staged messages');
+    if (staging[tabId]) {
+        for (var i = 0, length = staging[tabId].length; i < length; i++) {
+            chrome.tabs.sendMessage(tabId, staging[tabId][i]);
+        }
+        delete staging[tabId];
+    }
+}
+
+function switchMode(isDisabled) {
+    if (isDisabled) {
+        chrome.webRequest.onBeforeSendHeaders.removeListener(beforeSendHeadersHandler);
+        chrome.webRequest.onHeadersReceived.removeListener(headersReceivedHandler);
+        chrome.extension.onMessage.removeListener(messageHandler);
+    } else {
+        chrome.webRequest.onBeforeSendHeaders.addListener(beforeSendHeadersHandler, filter, ['blocking', 'requestHeaders']);
+        chrome.webRequest.onHeadersReceived.addListener(headersReceivedHandler, filter, ['responseHeaders']);
+        chrome.extension.onMessage.addListener(messageHandler);
+    }
+    chrome.browserAction.setIcon({
+        'path': isDisabled ? {
+            '19': 'images/icon-disabled-19.png',
+            '38': 'images/icon-disabled-38.png'
+        } : {
+            '19': 'images/icon-19.png',
+            '38': 'images/icon-38.png'
         }
     });
 }
 
-Cache.getKey(initListeners);
+
+function initListeners() {
+    var isDisabled = (Cache.get('disabled', 'false') === 'false' ? false : true);
+
+    chrome.browserAction.onClicked.addListener(function() {
+        isDisabled = !isDisabled;
+        switchMode(isDisabled);
+        Cache.set('disabled', isDisabled);
+    });
+
+    switchMode(isDisabled);
+}
+
+initListeners();

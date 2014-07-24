@@ -1,6 +1,6 @@
 {
     "name": "__MSG_appName__",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "manifest_version": 2,
     "description": "__MSG_appDescription__",
     "icons": {
@@ -14,32 +14,32 @@
             "scripts/background.js"
         ]
     },
-  "browser_action": {
-    "default_icon": {
-      "19": "images/icon-19.png",
-      "38": "images/icon-38.png"
+    "browser_action": {
+        "default_icon": {
+            "19": "images/icon-19.png",
+            "38": "images/icon-38.png"
+        },
+        "default_title": "Show Me the LOG"
     },
-    "default_title": "Show Me the LOG"
-  },
-  "options_page": "options.html",
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*.baidu.com/*",
-        "https://*.baidu.com/*"
-      ],
-      "js": [
-        "scripts/contentscript.js"
-      ],
-      "run_at": "document_start",
-      "all_frames": false
-    }
-  ],
-  "permissions": [
-    "tabs",
-    "webRequest",
-    "webRequestBlocking",
-    "http://*/*",
-    "https://*/*"
-  ]
+    "options_page": "options.html",
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*.baidu.com/*",
+                "https://*.baidu.com/*"
+            ],
+            "js": [
+                "scripts/contentscript.js"
+            ],
+            "run_at": "document_start",
+            "all_frames": false
+        }
+    ],
+    "permissions": [
+        "tabs",
+        "webRequest",
+        "webRequestBlocking",
+        "http://*/*",
+        "https://*/*"
+    ]
 }
