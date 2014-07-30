@@ -95,7 +95,7 @@ function headersReceivedHandler(details) {
             }
         });
     };
-    for (var i = 0; i < details.responseHeaders.length; ++i) {
+    for (var i = 0, length = details.responseHeaders.length; i < length; i++) {
         if (details.responseHeaders[i].name === 'X-Bingo-Log') {
             console.log(details.responseHeaders[i].value);
             sendMessageToContent(details.responseHeaders[i].value);
